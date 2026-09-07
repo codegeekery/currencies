@@ -1,0 +1,60 @@
+# Builds, logs, and caches
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+[Uu]ser[Ss]ettings.suo
+*.rsuser
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# JetBrains Rider files
+.idea/
+*.sln.iml
+
+# Visual Studio Code files
+.vscode/
+
+# NuGet Packages and local caches
+*.nupkg
+*.snupkg
+# Descomenta la siguiente línea si usas paquetes locales que no quieres versionar
+# [Nn]uGet/
+*.local
+
+# Unit Test Results
+*.trx
+*.coverage
+*.coveragexml
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]uild/
+[Bb]uild[Ll]ogs/
+
+# Profiler
+*.vsp
+*.vspx
+*.sap
+
+# DotCover coverage
+*.dotCover
+
+# Local environment variables
+.env
+.env.local
