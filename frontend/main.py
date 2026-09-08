@@ -112,19 +112,23 @@ def main(page: ft.Page):
     txt_data = ft.TextField(
         label="Data (yyyy-MM-dd)", width=200, value="2026-01-10"
     )
+    txt_base = ft.TextField(
+        label="Moeda Base", width=150, value="EUR"
+    )
     lista_taxas = ft.ListView(expand=1, spacing=5, padding=10)
 
     def consultar_taxas(e):
         lista_taxas.controls.clear()
         try:
-            url = f"{API_URL}/api/rates/{txt_data.value}"
+            base_moeda = txt_base.value.strip().upper() or "EUR"
+            url = f"{API_URL}/api/rates/{txt_data.value}?baseCurrency={base_moeda}"
             response = requests.get(url)
             if response.status_code == 200:
                 data = response.json()
                 rates = data.get("rates", {})
                 for target, val in rates.items():
                     lista_taxas.controls.append(
-                        ft.Text(f"1 EUR = {val} {target}")
+                        ft.Text(f"1 {base_moeda} = {val} {target}")
                     )
             else:
                 lista_taxas.controls.append(
@@ -142,12 +146,12 @@ def main(page: ft.Page):
         content=ft.Column(
             [
                 ft.Text(
-                    "Taxas por Data (Base EUR)",
+                    "Taxas por Data e Moeda Base",
                     size=20,
                     weight=ft.FontWeight.BOLD,
                 ),
                 ft.Row(
-                    [txt_data, btn_consultar_taxas],
+                    [txt_data, txt_base, btn_consultar_taxas],
                     alignment=ft.MainAxisAlignment.CENTER,
                 ),
                 ft.Container(
