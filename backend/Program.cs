@@ -7,11 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
+
 builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlite("Data Source=currencies.db"));
 
 var app = builder.Build();
-
-Console.WriteLine($"BD en: {Path.GetFullPath("currencies.db")}");
 
 using (var scope = app.Services.CreateScope())
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated();
@@ -70,6 +69,7 @@ app.MapGet("/api/currencies", async (AppDbContext db, IHttpClientFactory httpFac
     }
 
     var moedas = await db.Currencies.OrderBy(c => c.Code).ToListAsync();
+
     return Results.Ok(moedas);
 });
 
@@ -101,8 +101,7 @@ app.MapGet("/api/convert", async (string from, string to, decimal amount, AppDbC
 
         await db.SaveChangesAsync();
 
-        taxa = await db.Rates.FirstOrDefaultAsync(r =>
-            r.Date == hoje && r.Base == from && r.Target == to);
+        taxa = await db.Rates.FirstOrDefaultAsync(r => r.Date == hoje && r.Base == from && r.Target == to);
 
         if (taxa == null)
             return Results.NotFound($"Não existe taxa {from}->{to}");
@@ -119,22 +118,41 @@ app.MapGet("/api/convert", async (string from, string to, decimal amount, AppDbC
 // os valores vêm do banco; caso contrário, busca na Frankfurter API
 // e grava os resultados para consultas futuras.
 // -------------------------------
-app.MapGet("/api/rates/{date}", async (string date, AppDbContext db, IHttpClientFactory httpFactory) =>
+app.MapGet("/api/rates/{date}", async (string date, string baseCurrency, AppDbContext db, IHttpClientFactory httpFactory) =>
 {
     if (!DateOnly.TryParse(date, out var data))
         return Results.BadRequest("Formato inválido, use yyyy-MM-dd");
 
-    var existentes = await db.Rates.Where(r => r.Date == data && r.Base == "EUR").ToListAsync();
+    // Normaliza a moeda para maiúsculas para evitar duplicatas por casing
+    baseCurrency = baseCurrency.ToUpper();
+
+    // Filtra pela data e pela moeda base específica
+    var existentes = await db.Rates
+        .Where(r => r.Date == data && r.Base == baseCurrency)
+        .ToListAsync();
 
     if (existentes.Count == 0)
     {
         var client = httpFactory.CreateClient();
-        var json = await client.GetFromJsonAsync<FrankfurterResponse>(
-            $"https://api.frankfurter.dev/v1/{date}");
+        
+        // Passa a moeda base escolhida para a URL da API externa
+        var url = $"https://api.frankfurter.dev/v1/{date}?base={baseCurrency}";
+        
+        var json = await client.GetFromJsonAsync<FrankfurterResponse>(url);
 
-        foreach (var (target, rate) in json!.Rates)
+        if (json?.Rates == null)
+            return Results.NotFound("Não foi possível obter as cotações para esta data/moeda.");
+
+        foreach (var (target, rate) in json.Rates)
         {
-            var r = new Rate { Date = data, Base = "EUR", Target = target, Value = rate };
+            var r = new Rate 
+            { 
+                Date = data, 
+                Base = baseCurrency, 
+                Target = target, 
+                Value = rate 
+            };
+            
             db.Rates.Add(r);
             existentes.Add(r);
         }
@@ -144,6 +162,7 @@ app.MapGet("/api/rates/{date}", async (string date, AppDbContext db, IHttpClient
     return Results.Ok(new
     {
         date = data,
+        baseCurrency = baseCurrency,
         rates = existentes.ToDictionary(r => r.Target, r => r.Value)
     });
 });
